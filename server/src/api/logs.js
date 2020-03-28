@@ -1,55 +1,50 @@
-const { Router } = require('express')
+const { Router } = require('express');
+const RateLimit = require('express-rate-limit');
+const MongoStore = require('rate-limit-mongo');
 
-const  router = Router();
 const LogEntry = require('../models/logEntry');
 
+const {
+  API_KEY,
+  DATABASE_URL,
+} = process.env;
 
-router.get('/', async (req,res,next)=>{
-    try {
-        const entries = await LogEntry.find();
-        res.json(entries);    
-    } catch (error) {
-        next(error)
+const router = Router();
+
+const rateLimitDelay = 10 * 1000; // 10 second delay
+const limiter = new RateLimit({
+  store: new MongoStore({
+    uri: 'mongodb://localhost/travel-log',
+    expireTimeMs: rateLimitDelay,
+  }),
+  max: 1,
+  windowMs: rateLimitDelay
+});
+
+router.get('/', async (req, res, next) => {
+  try {
+    const entries = await logEntry.find();
+    res.json(entries);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/', limiter, async (req, res, next) => {
+  try {
+    if (req.get('X-API-KEY') !== API_KEY) {
+      res.status(401);
+      throw new Error('UnAuthorized');
     }
-    
-})
-
-router.post('/',async (req,res,next)=>{
-    try {
-        const newEntry = new LogEntry(req.body);
-        const createdEntry = await newEntry.save();
-        res.json(createdEntry);
-    } catch (error) {
-        if (error.name === 'ValidationError') {
-            res.status(422);
-          }
-          next(error);
+    const logEntry = new LogEntry(req.body);
+    const createdEntry = await logEntry.save();
+    res.json(createdEntry);
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      res.status(422);
     }
-})
-
-router.put('/:id', async(req,res,next)=>{
-    try {
-        const newData = req.body
-        const id = req.params.id
-        const travelLog = await LogEntry.findByIdAndUpdate(id,newData);
-        const updated = travelLog
-
-        res.json(updated);
-
-
-    } catch (error) {
-        next(error)
-    }
-})
-
-router.delete('/:id', async (req,res,next)=>{
-    try {
-        const id = req.params.id
-        const deleted = await LogEntry.findByIdAndDelete(id)
-        res.json(deleted)
-    } catch (error) {
-        
-    }
-})
+    next(error);
+  }
+});
 
 module.exports = router;

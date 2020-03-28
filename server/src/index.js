@@ -12,6 +12,8 @@ const middlewares = require('./middlewares')
 const logs = require ('./api/logs');
 const app = express();
 
+app.enable('trust proxy');
+
 mongoose.connect('mongodb://localhost/travel-log', {
     useNewUrlParser: true,
     useUnifiedTopology: true
@@ -22,7 +24,7 @@ const port = process.env.PORT || 1327;
 app.use(morgan('common'));
 app.use(helmet());
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: 'http://localhost:3000',
 }))
 app.use(express.json());
 
